@@ -1,0 +1,137 @@
+-- Secure initialization
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+
+-- Bypass methods
+local function spoofProperty(instance, property, value)
+    local s = Instance.new("StringValue")
+    s.Value = tostring(value)
+    s.Name = property
+    s.Parent = instance
+end
+
+-- Secure flying implementation
+local function initFly()
+    local char = LocalPlayer.Character
+    local humanoid = char:WaitForChild("Humanoid")
+    local root = char:WaitForChild("HumanoidRootPart")
+    
+    local flyVel = Instance.new("BodyVelocity")
+    flyVel.Velocity = Vector3.new(0,0,0)
+    flyVel.MaxForce = Vector3.new(0,0,0)
+    
+    local function updateFly()
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+            root.CFrame = root.CFrame * CFrame.new(0,1,0)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+            root.CFrame = root.CFrame * CFrame.new(0,-1,0)
+        end
+    end
+    
+    RunService.Heartbeat:Connect(updateFly)
+end
+
+-- Enhanced silent aim
+local function setupSilentAim()
+    local function getTarget()
+        local closest = math.huge
+        local target = nil
+        
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and 
+               player.Character:FindFirstChild("HumanoidRootPart") and 
+               player.Character:FindFirstChild("Humanoid") and 
+               player.Character.Humanoid.Health > 0 then
+                
+                local pos = player.Character.HumanoidRootPart.Position
+                local dist = (LocalPlayer.Character.HumanoidRootPart.Position - pos).magnitude
+                
+                if dist < closest then
+                    closest = dist
+                    target = player.Character.Head
+                end
+            end
+        end
+        return target
+    end
+    
+    local mt = getrawmetatable(game)
+    setreadonly(mt, false)
+    local oldIndex = mt.__index
+    local oldNamecall = mt.__namecall
+    
+    mt.__namecall = newcclosure(function(self, ...)
+        local args = {...}
+        local method = getnamecallmethod()
+        if method == "FireServer" then
+            local target = getTarget()
+            if target then
+                args[2] = target.Position
+            end
+        end
+        return oldNamecall(self, unpack(args))
+    end)
+end
+
+-- Stealth hitbox expansion
+local function expandHitbox()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local size = Vector3.new(10, 10, 10)
+                spoofProperty(hrp, "Size", size)
+                hrp.Transparency = 1
+                hrp.CanCollide = false
+            end
+        end
+    end
+end
+
+-- Secure god mode
+local function enableGodMode()
+    local char = LocalPlayer.Character
+    local humanoid = char:WaitForChild("Humanoid")
+    
+    local function preventDamage()
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+        humanoid.HealthChanged:Connect(function(health)
+            if health < humanoid.MaxHealth then
+                humanoid.Health = humanoid.MaxHealth
+            end
+        end)
+    end
+    
+    preventDamage()
+    char.ChildAdded:Connect(function(child)
+        if child.Name == "KO" or child.Name == "Grabbed" then
+            child:Destroy()
+        end
+    end)
+end
+
+-- Speed modification
+local function setSpeed(speed)
+    local char = LocalPlayer.Character
+    local humanoid = char:WaitForChild("Humanoid")
+    
+    local function updateSpeed()
+        humanoid.WalkSpeed = speed
+    end
+    
+    RunService.Heartbeat:Connect(updateSpeed)
+end
+
+-- Main execution
+local function main()
+    initFly()
+    setupSilentAim()
+    expandHitbox()
+    enableGodMode()
+    setSpeed(50)
+end
+
+main()
